@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 
 # 直接写死API Key
-api_key = st.secrets["DEEPSEEK_KEY"]
+api_key = "sk-093bf9c5ad614823b17c6874e4950f8b"
 
 # 频率限制
 if "gen_count" not in st.session_state:
@@ -24,49 +24,41 @@ st.markdown("""
         font-size: 16px;
     }
     
-    /* 按钮样式 */
+    /* 普通按钮样式（风格选择按钮） */
     .stButton > button {
-        background: linear-gradient(135deg, #FF6B6B, #FF8E53);
-        color: white;
-        border-radius: 30px;
-        border: none;
-        padding: 12px 24px;
-        font-size: 18px;
-        font-weight: bold;
+        background: #f0f2f6;
+        color: #333;
+        border-radius: 20px;
+        border: 1px solid #ddd;
+        padding: 8px 12px;
+        font-size: 14px;
+        font-weight: normal;
         width: 100%;
-        margin-top: 10px;
-        transition: all 0.3s ease;
+        margin-top: 5px;
+        transition: all 0.2s ease;
     }
     .stButton > button:hover {
-        transform: scale(1.02);
-        box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+        background: #e0e2e6;
+        transform: scale(1.01);
     }
     
-    /* 选择框样式修复 - 让文字完整显示 */
-    .stSelectbox > div > div {
-        border-radius: 25px;
-        padding: 10px 15px;
-        min-height: 45px;
-        white-space: normal !important;
-        word-break: keep-all;
-        overflow-x: auto;
+    /* 主按钮样式（生成按钮）单独处理 */
+    .main-button > button {
+        background: linear-gradient(135deg, #FF6B6B, #FF8E53) !important;
+        color: white !important;
+        border-radius: 40px !important;
+        border: none !important;
+        padding: 14px 28px !important;
+        font-size: 20px !important;
+        font-weight: bold !important;
+        width: 100% !important;
+        margin-top: 20px !important;
+        margin-bottom: 20px !important;
+        box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3) !important;
     }
-    /* 让选择框的显示文字不截断 */
-    .stSelectbox [data-baseweb="select"] span {
-        white-space: normal !important;
-        word-break: keep-all;
-    }
-    /* 下拉菜单选项完整显示 */
-    div[data-baseweb="select"] ul {
-        width: auto !important;
-        min-width: 200px;
-        max-width: 400px;
-    }
-    div[data-baseweb="select"] li {
-        white-space: normal !important;
-        word-break: keep-all;
-        padding: 10px 15px;
-        line-height: 1.4;
+    .main-button > button:hover {
+        transform: scale(1.02) !important;
+        box-shadow: 0 6px 16px rgba(255, 107, 107, 0.4) !important;
     }
     
     /* 手机端专用优化 */
@@ -80,8 +72,17 @@ st.markdown("""
         .stMarkdown p {
             font-size: 14px;
         }
-        div[data-baseweb="select"] ul {
-            max-width: 90vw;
+        .stColumns {
+            flex-direction: column;
+        }
+        .stColumns > div {
+            width: 100% !important;
+            margin-bottom: 10px;
+        }
+        /* 风格按钮手机端字体稍大 */
+        .stButton > button {
+            font-size: 16px;
+            padding: 10px 12px;
         }
     }
     
@@ -149,12 +150,8 @@ if not api_key:
 topic = st.text_input("✏️ 你想写什么内容？", 
                        placeholder="例如：新买的lolita裙子、熬夜面霜、周末探店...")
 
-# ========== 风格选择（文字完整显示）==========
-# 将风格选项分组，用 radio 分两列显示，手机端自动折行
-st.markdown("### 🎨 选择文案风格")
-col1, col2 = st.columns(2)
-
-# 风格列表（按列分配）
+# ========== 风格选择（按钮式，单选）==========
+# 风格列表
 styles = [
     "温柔治愈", "搞笑幽默", "干货分享", "情感共鸣",
     "测评推荐", "避雷吐槽", "穿搭分享", "教程攻略",
@@ -162,19 +159,21 @@ styles = [
     "文艺清新", "种草安利"
 ]
 
-half = len(styles) // 2
-left_styles = styles[:half]
-right_styles = styles[half:]
-
+# 初始化选中的风格
 if "selected_style" not in st.session_state:
     st.session_state.selected_style = styles[0]
 
 st.markdown("### 🎨 选择文案风格")
+
+# 分成两列
+half = len(styles) // 2
+left_styles = styles[:half]
+right_styles = styles[half:]
+
 col1, col2 = st.columns(2)
 
 with col1:
     for s in left_styles:
-        # 判断当前选项是否被选中
         is_selected = (st.session_state.selected_style == s)
         button_label = f"✅ {s}" if is_selected else f"☑️ {s}"
         if st.button(button_label, key=f"style_{s}", use_container_width=True):
@@ -189,82 +188,91 @@ with col2:
             st.session_state.selected_style = s
             st.rerun()
 
-# 生成文案时用这个
+# 获取当前选中的风格
 style = st.session_state.selected_style
 
-# ========== 生成按钮 ==========
-if st.button("✨ 一键生成文案 ✨", type="primary"):
-    if st.session_state.gen_count >= 10:
-        st.markdown("""
-        <div class="paywall-card">
-            <p style="font-size: 1.2rem;">✨ 免费次数已用完 ✨</p>
-            <p style="font-size: 0.9rem;">9.9元/月 无限次使用</p>
-            <p>👉 <a href="https://afdian.com/" target="_blank">点击购买</a></p>
-            <p style="font-size: 0.7rem; color: #999;">购买后联系客服开通无限次数</p>
-        </div>
-        """, unsafe_allow_html=True)
-        st.stop()
-    elif not topic:
-        st.error("请输入你要写的内容")
-    else:
-        with st.spinner("AI正在为你写文案..."):
-            url = "https://api.deepseek.com/v1/chat/completions"
-            headers = {
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json"
-            }
-            
-            prompt = f"""
-            你是一个专业的小红书文案写手。请根据以下主题，生成3条不同风格的小红书爆款文案。
+# ========== 加一个空行，让按钮往下挪 ==========
+st.markdown("<br>", unsafe_allow_html=True)
 
-            主题：{topic}
-            风格偏好：{style}
-
-            要求：
-            1. 每条文案包含标题（带emoji）和正文
-            2. 使用小红书常用的emoji和口语化表达
-            3. 每条文案最后加3-5个相关话题标签
-            4. 每条文案之间用"---"分隔
-            """
-            
-            data = {
-                "model": "deepseek-chat",
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.8,
-                "max_tokens": 2000
-            }
-            
-            try:
-                response = requests.post(url, headers=headers, json=data, timeout=30)
-                
-                if response.status_code != 200:
-                    st.error(f"API请求失败：HTTP {response.status_code}")
-                    st.info("可能原因：含有敏感词、API Key无效、或网络问题。")
-                else:
-                    result = response.json()
+# ========== 生成按钮（居中 + 特殊样式）==========
+col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
+with col_btn2:
+    # 用容器包裹按钮，应用特殊样式
+    with st.container():
+        st.markdown('<div class="main-button">', unsafe_allow_html=True)
+        if st.button("✨ 一键生成文案 ✨", type="primary", use_container_width=True):
+            if st.session_state.gen_count >= 10:
+                st.markdown("""
+                <div class="paywall-card">
+                    <p style="font-size: 1.2rem;">✨ 免费次数已用完 ✨</p>
+                    <p style="font-size: 0.9rem;">9.9元/月 无限次使用</p>
+                    <p>👉 <a href="https://afdian.com/" target="_blank">点击购买</a></p>
+                    <p style="font-size: 0.7rem; color: #999;">购买后联系客服开通无限次数</p>
+                </div>
+                """, unsafe_allow_html=True)
+                st.stop()
+            elif not topic:
+                st.error("请输入你要写的内容")
+            else:
+                with st.spinner("AI正在为你写文案..."):
+                    url = "https://api.deepseek.com/v1/chat/completions"
+                    headers = {
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json"
+                    }
                     
-                    if "choices" not in result or len(result["choices"]) == 0:
-                        if "error" in result:
-                            st.error(f"API返回错误：{result['error'].get('message', '未知错误')}")
+                    prompt = f"""
+                    你是一个专业的小红书文案写手。请根据以下主题，生成3条不同风格的小红书爆款文案。
+
+                    主题：{topic}
+                    风格偏好：{style}
+
+                    要求：
+                    1. 每条文案包含标题（带emoji）和正文
+                    2. 使用小红书常用的emoji和口语化表达
+                    3. 每条文案最后加3-5个相关话题标签
+                    4. 每条文案之间用"---"分隔
+                    """
+                    
+                    data = {
+                        "model": "deepseek-chat",
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": 0.8,
+                        "max_tokens": 2000
+                    }
+                    
+                    try:
+                        response = requests.post(url, headers=headers, json=data, timeout=30)
+                        
+                        if response.status_code != 200:
+                            st.error(f"API请求失败：HTTP {response.status_code}")
+                            st.info("可能原因：含有敏感词、API Key无效、或网络问题。")
                         else:
-                            st.error("生成失败：API返回数据异常，请稍后重试")
-                    else:
-                        output = result['choices'][0]['message']['content']
-                        
-                        st.success("✨ 生成成功！")
-                        st.markdown("---")
-                        st.markdown(output)
-                        st.code(output, language="markdown")
-                        st.caption("👆 长按上面的文字可以复制")
-                        
-                        st.session_state.gen_count += 1
-                        
-            except requests.exceptions.Timeout:
-                st.error("生成超时：API响应太慢，请稍后重试")
-            except requests.exceptions.ConnectionError:
-                st.error("网络连接失败：请检查网络后重试")
-            except Exception as e:
-                st.error(f"生成失败：{str(e)}")
+                            result = response.json()
+                            
+                            if "choices" not in result or len(result["choices"]) == 0:
+                                if "error" in result:
+                                    st.error(f"API返回错误：{result['error'].get('message', '未知错误')}")
+                                else:
+                                    st.error("生成失败：API返回数据异常，请稍后重试")
+                            else:
+                                output = result['choices'][0]['message']['content']
+                                
+                                st.success("✨ 生成成功！")
+                                st.markdown("---")
+                                st.markdown(output)
+                                st.code(output, language="markdown")
+                                st.caption("👆 长按上面的文字可以复制")
+                                
+                                st.session_state.gen_count += 1
+                                
+                    except requests.exceptions.Timeout:
+                        st.error("生成超时：API响应太慢，请稍后重试")
+                    except requests.exceptions.ConnectionError:
+                        st.error("网络连接失败：请检查网络后重试")
+                    except Exception as e:
+                        st.error(f"生成失败：{str(e)}")
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # ========== 文案示例展示 ==========
 st.markdown("---")
