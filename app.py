@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 
 # 直接写死API Key
-api_key = "sk-093bf9c5ad614823b17c6874e4950f8b"
+api_key = st.secrets["DEEPSEEK_KEY"]
 
 # 频率限制
 if "gen_count" not in st.session_state:
