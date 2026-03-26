@@ -121,7 +121,7 @@ st.markdown("""
 st.markdown("""
 <div style="text-align: center; margin-bottom: 20px;">
     <h1 style="font-size: 2.5rem; background: linear-gradient(135deg, #FF6B6B, #FF8E53); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0;">
-        ✨ AI爆款文案生成器 ✨
+        ✨ 爆款文案生成器 ✨
     </h1>
     <p style="font-size: 1rem; color: #666; margin-top: 5px;">10秒生成小红书/朋友圈/抖音爆款文案</p>
     <p style="font-size: 0.8rem; color: #999;">已有 12,345 人使用 | 好评率 98%</p>
