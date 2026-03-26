@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+import time
 
 # 直接写死API Key
 api_key = st.secrets["DEEPSEEK_KEY"]
@@ -122,10 +123,22 @@ st.markdown("""
     <h1 style="font-size: 2.5rem; background: linear-gradient(135deg, #FF6B6B, #FF8E53); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0;">
         ✨ AI爆款文案生成器 ✨
     </h1>
-    <p style="font-size: 1rem; color: #666; margin-top: 5px;">3秒生成小红书/朋友圈/抖音爆款文案</p>
+    <p style="font-size: 1rem; color: #666; margin-top: 5px;">10秒生成小红书/朋友圈/抖音爆款文案</p>
     <p style="font-size: 0.8rem; color: #999;">已有 12,345 人使用 | 好评率 98%</p>
 </div>
 """, unsafe_allow_html=True)
+
+# ========== 兑换码解锁 ==========
+with st.expander("🔓 已有兑换码？点此解锁无限次"):
+    code = st.text_input("输入兑换码", key="unlock_code")
+    if st.button("解锁"):
+        if code == "EC4R7U8BHWL":  # 你的兑换码
+            st.session_state.unlimited = True
+            st.success("✅ 解锁成功！现在可以无限次使用了")
+            time.sleep(1)
+            st.rerun()
+        else:
+            st.error("❌ 兑换码错误")
 
 # ========== 使用指南 ==========
 with st.expander("📖 使用指南（点开看教程）"):
@@ -134,7 +147,7 @@ with st.expander("📖 使用指南（点开看教程）"):
         <b>✨ 三步搞定爆款文案</b><br>
         1️⃣ 输入你想写的内容（比如：新买的lolita裙子）<br>
         2️⃣ 选择喜欢的文案风格<br>
-        3️⃣ 点击生成，3秒拿到3条爆款文案<br>
+        3️⃣ 点击生成，10秒拿到3条爆款文案<br>
         4️⃣ 直接复制发小红书，流量蹭蹭涨！<br>
         <br>
         💡 <b>小技巧</b>：风格选“测评推荐”或“避雷吐槽”更容易出爆款～
@@ -151,7 +164,6 @@ topic = st.text_input("✏️ 你想写什么内容？",
                        placeholder="例如：新买的lolita裙子、熬夜面霜、周末探店...")
 
 # ========== 风格选择（按钮式，单选）==========
-# 风格列表
 styles = [
     "温柔治愈", "搞笑幽默", "干货分享", "情感共鸣",
     "测评推荐", "避雷吐槽", "穿搭分享", "教程攻略",
@@ -159,13 +171,11 @@ styles = [
     "文艺清新", "种草安利"
 ]
 
-# 初始化选中的风格
 if "selected_style" not in st.session_state:
     st.session_state.selected_style = styles[0]
 
 st.markdown("### 🎨 选择文案风格")
 
-# 分成两列
 half = len(styles) // 2
 left_styles = styles[:half]
 right_styles = styles[half:]
@@ -188,33 +198,21 @@ with col2:
             st.session_state.selected_style = s
             st.rerun()
 
-# 获取当前选中的风格
 style = st.session_state.selected_style
 
-# ========== 加一个空行，让按钮往下挪 ==========
 st.markdown("<br>", unsafe_allow_html=True)
 
-# ========== 生成按钮（居中 + 特殊样式）==========
+# ========== 生成按钮（居中 + 特殊样式 + 解锁判断）==========
 col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
 with col_btn2:
-    # 用容器包裹按钮，应用特殊样式
     with st.container():
         st.markdown('<div class="main-button">', unsafe_allow_html=True)
         if st.button("✨ 一键生成文案 ✨", type="primary", use_container_width=True):
-            if st.session_state.gen_count >= 10:
-                st.markdown("""
-                <div class="paywall-card">
-                    <p style="font-size: 1.2rem;">✨ 免费次数已用完 ✨</p>
-                    <p style="font-size: 0.9rem;">9.9元/月 无限次使用</p>
-                    <p>👉 <a href="https://afdian.com/" target="_blank">点击购买</a></p>
-                    <p style="font-size: 0.7rem; color: #999;">购买后联系客服开通无限次数</p>
-                </div>
-                """, unsafe_allow_html=True)
-                st.stop()
-            elif not topic:
-                st.error("请输入你要写的内容")
-            else:
-                with st.spinner("AI正在为你写文案..."):
+            # 1. 先检查是否已解锁无限次
+            if st.session_state.get("unlimited", False):
+                # 已解锁用户，直接生成，不限制次数
+                with st.spinner("正在为你写文案..."):
+                    # API调用
                     url = "https://api.deepseek.com/v1/chat/completions"
                     headers = {
                         "Authorization": f"Bearer {api_key}",
@@ -229,9 +227,11 @@ with col_btn2:
 
                     要求：
                     1. 每条文案包含标题（带emoji）和正文
-                    2. 使用小红书常用的emoji和口语化表达
+                    2. 使用小红书常用的emoji和口语化表达，emoji数量不超过3个
                     3. 每条文案最后加3-5个相关话题标签
                     4. 每条文案之间用"---"分隔
+                    5. 每条文案不要出现姐妹们字眼，使用家人们代替
+                    6. 每条文案不要出现谁懂啊、我真的会谢，换成其他词代替
                     """
                     
                     data = {
@@ -264,6 +264,83 @@ with col_btn2:
                                 st.code(output, language="markdown")
                                 st.caption("👆 长按上面的文字可以复制")
                                 
+                    except requests.exceptions.Timeout:
+                        st.error("生成超时：API响应太慢，请稍后重试")
+                    except requests.exceptions.ConnectionError:
+                        st.error("网络连接失败：请检查网络后重试")
+                    except Exception as e:
+                        st.error(f"生成失败：{str(e)}")
+            
+            # 2. 未解锁用户，检查免费次数
+            elif st.session_state.gen_count >= 3:
+                st.markdown("""
+                <div class="paywall-card">
+                    <p style="font-size: 1.2rem;">✨ 免费次数已用完 ✨</p>
+                    <p style="font-size: 0.9rem;">9.9元/月 无限次使用</p>
+                    <p>👉 <a href="https://afdian.com/" target="_blank">点击购买</a></p>
+                    <p style="font-size: 0.7rem; color: #999;">购买后联系客服开通无限次数</p>
+                </div>
+                """, unsafe_allow_html=True)
+                st.stop()
+            
+            elif not topic:
+                st.error("请输入你要写的内容")
+            
+            else:
+                # 未解锁用户，生成并增加次数
+                with st.spinner("正在为你写文案..."):
+                    url = "https://api.deepseek.com/v1/chat/completions"
+                    headers = {
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json"
+                    }
+                    
+                    prompt = f"""
+                    你是一个专业的小红书文案写手。请根据以下主题，生成3条不同风格的小红书爆款文案。
+
+                    主题：{topic}
+                    风格偏好：{style}
+
+                    要求：
+                    1. 每条文案包含标题（带emoji）和正文
+                    2. 使用小红书常用的emoji和口语化表达，emoji数量不超过3个
+                    3. 每条文案最后加3-5个相关话题标签
+                    4. 每条文案之间用"---"分隔
+                    5. 每条文案不要出现姐妹们字眼，使用家人们代替
+                    6. 每条文案不要出现谁懂啊、我真的会谢，换成其他词代替
+                    """
+                    
+                    data = {
+                        "model": "deepseek-chat",
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": 0.8,
+                        "max_tokens": 2000
+                    }
+                    
+                    try:
+                        response = requests.post(url, headers=headers, json=data, timeout=30)
+                        
+                        if response.status_code != 200:
+                            st.error(f"API请求失败：HTTP {response.status_code}")
+                            st.info("可能原因：含有敏感词、API Key无效、或网络问题。")
+                        else:
+                            result = response.json()
+                            
+                            if "choices" not in result or len(result["choices"]) == 0:
+                                if "error" in result:
+                                    st.error(f"API返回错误：{result['error'].get('message', '未知错误')}")
+                                else:
+                                    st.error("生成失败：API返回数据异常，请稍后重试")
+                            else:
+                                output = result['choices'][0]['message']['content']
+                                
+                                st.success("✨ 生成成功！")
+                                st.markdown("---")
+                                st.markdown(output)
+                                st.code(output, language="markdown")
+                                st.caption("👆 长按上面的文字可以复制")
+                                
+                                # 只有未解锁用户才增加次数
                                 st.session_state.gen_count += 1
                                 
                     except requests.exceptions.Timeout:
@@ -280,23 +357,24 @@ st.markdown("### 🌟 爆款文案示例")
 with st.expander("🔥 点击查看真实生成效果"):
     st.markdown("""
     **📷 自拍文案示例**
-    > 今天这组自拍我也太满意了吧！😍  
-    > 阳光正好，心情刚好✨  
-    > 原相机直出，皮肤好到离谱～  
-    > #自拍 #今日份开心 #原相机 #好皮肤
+    > 今天这组原相机直出，我自己都惊了😳  
+    > 阳光好真的太加分了，皮肤透亮到不用修图✨  
+    > 姐妹们快趁好天气冲！  
+    > #原相机挑战 #今日份自拍 #阳光是最好的滤镜
 
     **🛍️ 好物分享示例**
-    > 挖到宝了！这个面霜也太绝了🔥  
-    > 熬夜党的救星，第二天起来脸在发光✨  
-    > 姐妹们快冲！  
-    > #好物分享 #护肤 #熬夜党 #面霜
+    > 挖到宝了！这个面霜真的会谢谢它🙏  
+    > 熬夜到三点，第二天起来脸还是软软的  
+    > 本干皮真的爱死，已经安利给整个宿舍了  
+    > #平价面霜 #熬夜党 #干皮救星 #好物分享
 
     **💔 失恋心情示例**
-    > 有些人，走着走着就散了💔  
+    > 删掉聊天记录的那一刻，突然就释然了  
+    > 有些人注定是陪你走一段路的  
     > 谢谢你来过，不遗憾你离开  
-    > 我会成为更好的自己  
+    > 我会成为更好的自己💪  
     > #失恋 #成长 #好好爱自己
     """)
 
 st.markdown("---")
-st.caption("💡 提示：每天可免费生成10次，更多次数请购买会员")
+st.caption("💡 提示：每天可免费生成3次，更多次数请微信联系A1anYr购买兑换码")
